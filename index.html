@@ -1,0 +1,1340 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Simulador Avanzado: Interferómetro de Michelson</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- KaTeX for crisp mathematical formulas -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Inter:wght@300;400;600;700&display=swap');
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #0b0f19;
+      color: #e2e8f0;
+    }
+    .font-mono-code {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    /* Custom Scrollbars */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #111827;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #374151;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #4b5563;
+    }
+    /* Slider accents */
+    input[type=range] {
+      accent-color: #38bdf8;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col bg-slate-950 text-slate-100">
+
+  <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-50 px-4 py-3 flex flex-wrap items-center justify-between gap-3 shadow-md">
+    <div class="flex items-center gap-3">
+      <div class="w-9 h-9 rounded-lg bg-cyan-500/20 border border-cyan-500/50 flex items-center justify-center text-cyan-400">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="9"/>
+          <path d="M12 3v18M3 12h18"/>
+          <circle cx="12" cy="12" r="5" stroke-dasharray="2 2"/>
+        </svg>
+      </div>
+      <div>
+        <h1 class="text-lg font-bold tracking-tight text-white flex items-center gap-2">
+          Interferómetro de Michelson
+          <span class="text-xs font-mono-code font-normal bg-cyan-950 text-cyan-400 border border-cyan-800/60 px-2 py-0.5 rounded-full">v2.5 Lab Virtual</span>
+        </h1>
+        <p class="text-xs text-slate-400">Simulación física interactiva con óptica ondulatoria y análisis de franjas</p>
+      </div>
+    </div>
+
+    <!-- Mode Selector & Quick Actions -->
+    <div class="flex items-center gap-2 text-xs">
+      <button id="btnTabExplorer" class="tab-btn px-3 py-1.5 rounded-lg font-medium transition bg-cyan-600 text-white shadow-sm shadow-cyan-900/50">
+        Modo Libre
+      </button>
+      <button id="btnTabExp1" class="tab-btn px-3 py-1.5 rounded-lg font-medium transition bg-slate-800 hover:bg-slate-700 text-slate-300">
+        Práctica 1: Medición de λ
+      </button>
+      <button id="btnTabExp2" class="tab-btn px-3 py-1.5 rounded-lg font-medium transition bg-slate-800 hover:bg-slate-700 text-slate-300">
+        Práctica 2: Índice Refractivo de Gas
+      </button>
+      <button id="btnInfoModal" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700/60 transition" title="Guía Teórica y Ecuaciones">
+        📖 Teoría
+      </button>
+    </div>
+  </header>
+
+  <main class="flex-1 max-w-[1720px] w-full mx-auto p-3 sm:p-4 grid grid-cols-1 xl:grid-cols-12 gap-4">
+
+    <!-- Left Column: Optical Setup Diagram & Controls (7 cols) -->
+    <section class="xl:col-span-7 flex flex-col gap-4">
+      
+      <!-- Interactive Optical Bench Diagram -->
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-3 shadow-lg flex flex-col relative overflow-hidden">
+        <div class="flex items-center justify-between pb-2 border-b border-slate-800/80 mb-2">
+          <div class="flex items-center gap-2">
+            <span class="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span class="text-xs font-semibold text-slate-300 uppercase tracking-wider">Banco Óptico Esquemático</span>
+          </div>
+          <div class="flex items-center gap-3 text-xs text-slate-400">
+            <label class="flex items-center gap-1.5 cursor-pointer">
+              <input type="checkbox" id="checkShowBeams" checked class="rounded bg-slate-800 border-slate-700 text-cyan-500 focus:ring-0">
+              <span>Rayos de Luz</span>
+            </label>
+            <label class="flex items-center gap-1.5 cursor-pointer">
+              <input type="checkbox" id="checkCellArm" class="rounded bg-slate-800 border-slate-700 text-cyan-500 focus:ring-0">
+              <span>Celda de Gas (Brazo 1)</span>
+            </label>
+            <button id="btnResetBench" class="text-slate-400 hover:text-cyan-400 transition" title="Restablecer posición inicial">
+              ↺ Reset
+            </button>
+          </div>
+        </div>
+
+        <!-- Canvas for Optical Scheme -->
+        <div class="relative w-full aspect-[16/9] min-h-[300px] max-h-[440px] bg-slate-950 rounded-lg overflow-hidden border border-slate-800/80">
+          <canvas id="canvasScheme" class="w-full h-full block cursor-crosshair"></canvas>
+          <div id="schemeTooltip" class="absolute hidden pointer-events-none bg-slate-900/95 border border-cyan-500/50 text-slate-200 text-xs px-2.5 py-1.5 rounded-lg shadow-xl backdrop-blur"></div>
+        </div>
+
+        <div class="mt-2 text-xs text-slate-400 flex flex-wrap items-center justify-between gap-2 px-1">
+          <span class="flex items-center gap-1">
+            <span class="w-2.5 h-2.5 rounded-full" id="laserColorIndicator"></span>
+            Láser activo: <strong id="laserStatusLabel" class="text-slate-200 font-mono-code">632.8 nm (He-Ne Rojo)</strong>
+          </span>
+          <span class="font-mono-code text-cyan-400 bg-cyan-950/40 px-2 py-0.5 rounded border border-cyan-800/40">
+            Diferencia de Camino Óptico: <span id="opdBadge">Δ = 0.000 μm</span>
+          </span>
+        </div>
+      </div>
+
+      <!-- Controls Panel -->
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-lg flex flex-col gap-4">
+        <h2 class="text-sm font-semibold uppercase tracking-wider text-slate-300 flex items-center justify-between border-b border-slate-800 pb-2">
+          <span>Parámetros de Laboratorio y Ajustes Físicos</span>
+          <span class="text-xs font-normal text-slate-500">M1: Fijo | M2: Móvil</span>
+        </h2>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <!-- Wavelength & Laser Controls -->
+          <div class="space-y-3 bg-slate-950/60 p-3 rounded-lg border border-slate-800/70">
+            <div class="flex items-center justify-between">
+              <label class="text-xs font-medium text-slate-300">Longitud de Onda (<span class="font-mono-code">λ</span>):</label>
+              <span id="txtWavelength" class="text-xs font-mono-code font-bold text-amber-400">632.8 nm</span>
+            </div>
+            <input type="range" id="sliderWavelength" min="400" max="750" step="0.5" value="632.8" class="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer">
+            <div class="flex flex-wrap gap-1.5 text-[11px]">
+              <button class="preset-wl px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-rose-300" data-wl="632.8">He-Ne (632.8)</button>
+              <button class="preset-wl px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-emerald-300" data-wl="532.0">Nd:YAG 2ω (532)</button>
+              <button class="preset-wl px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-blue-300" data-wl="445.0">Diodo Azul (445)</button>
+              <button class="preset-wl px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-yellow-300" data-wl="589.0">Sodio D (589)</button>
+            </div>
+          </div>
+
+          <!-- Mirror 2 Position (Δd) -->
+          <div class="space-y-3 bg-slate-950/60 p-3 rounded-lg border border-slate-800/70">
+            <div class="flex items-center justify-between">
+              <label class="text-xs font-medium text-slate-300">Posición Espejo M2 (<span class="font-mono-code">d</span>):</label>
+              <span id="txtMirrorPos" class="text-xs font-mono-code font-bold text-cyan-400">0.000 μm</span>
+            </div>
+            <input type="range" id="sliderMirrorPos" min="-25" max="25" step="0.005" value="0.000" class="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer">
+            
+            <!-- Fine Micrometer Buttons -->
+            <div class="flex items-center justify-between text-xs gap-1">
+              <span class="text-[11px] text-slate-400">Paso fino:</span>
+              <div class="flex gap-1">
+                <button id="btnStepMinus10" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 font-mono-code text-[11px] text-slate-300">-1 μm</button>
+                <button id="btnStepMinus01" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 font-mono-code text-[11px] text-slate-300">-0.1 μm</button>
+                <button id="btnStepPlus01" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 font-mono-code text-[11px] text-slate-300">+0.1 μm</button>
+                <button id="btnStepPlus10" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 font-mono-code text-[11px] text-slate-300">+1 μm</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Mirror Tilt (Cuña de aire / Franjas rectilíneas) -->
+          <div class="space-y-3 bg-slate-950/60 p-3 rounded-lg border border-slate-800/70">
+            <div class="flex items-center justify-between">
+              <label class="text-xs font-medium text-slate-300">Inclinación Espejo M2 (<span class="font-mono-code">θ_x, θ_y</span>):</label>
+              <span id="txtTilt" class="text-xs font-mono-code text-indigo-300">0.00 mrad</span>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <span class="text-[10px] text-slate-400">Eje X (Franjas verticales):</span>
+                <input type="range" id="sliderTiltX" min="-3" max="3" step="0.02" value="0" class="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer">
+              </div>
+              <div>
+                <span class="text-[10px] text-slate-400">Eje Y (Franjas horizontales):</span>
+                <input type="range" id="sliderTiltY" min="-3" max="3" step="0.02" value="0" class="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer">
+              </div>
+            </div>
+            <div class="flex justify-between items-center text-[11px]">
+              <span class="text-slate-500">0 = Franjas circulares concéntricas</span>
+              <button id="btnZeroTilt" class="text-cyan-400 hover:underline">Centrar (0 rad)</button>
+            </div>
+          </div>
+
+          <!-- Beam Divergence & Gas Cell -->
+          <div class="space-y-3 bg-slate-950/60 p-3 rounded-lg border border-slate-800/70">
+            <div class="flex items-center justify-between">
+              <label class="text-xs font-medium text-slate-300">Presión en Celda de Gas (<span class="font-mono-code">P</span>):</label>
+              <span id="txtPressure" class="text-xs font-mono-code font-bold text-teal-300">0.00 kPa</span>
+            </div>
+            <input type="range" id="sliderPressure" min="0" max="101.3" step="0.5" value="0" class="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer" disabled>
+            <div class="flex items-center justify-between text-[11px]">
+              <span class="text-slate-400">Índice <span class="font-mono-code">n</span> estimado: <strong id="txtGasN" class="text-slate-200 font-mono-code">1.000000</strong></span>
+              <span class="text-[10px] text-slate-500">L = 10.0 mm</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Guided Laboratory Module (Dynamic based on selected tab) -->
+      <div id="guidedExperimentCard" class="bg-gradient-to-br from-slate-900 to-slate-900 border border-slate-800 rounded-xl p-4 shadow-lg hidden">
+        <!-- Content inserted dynamically by JS -->
+      </div>
+    </section>
+
+    <!-- Right Column: Interference Pattern Screen & 1D Intensity Profile (5 cols) -->
+    <section class="xl:col-span-5 flex flex-col gap-4">
+      
+      <!-- Screen Interference Pattern -->
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-3 shadow-lg flex flex-col items-center">
+        <div class="w-full flex items-center justify-between pb-2 border-b border-slate-800 mb-2">
+          <div class="flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-cyan-400"></span>
+            <span class="text-xs font-semibold text-slate-300 uppercase tracking-wider">Patrón en Pantalla de Observación</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <label class="text-xs text-slate-400 flex items-center gap-1">
+              <span>Zoom Óptico:</span>
+              <select id="selectZoom" class="bg-slate-800 text-xs text-slate-200 border border-slate-700 rounded px-1.5 py-0.5">
+                <option value="0.5">0.5x Gran angular</option>
+                <option value="1" selected>1.0x Normal</option>
+                <option value="2">2.0x Detallado</option>
+                <option value="4">4.0x Zoom central</option>
+              </select>
+            </label>
+          </div>
+        </div>
+
+        <!-- Pattern Canvas Container -->
+        <div class="relative w-full aspect-square max-w-[440px] bg-black rounded-lg overflow-hidden border-2 border-slate-800 flex items-center justify-center shadow-inner">
+          <canvas id="canvasInterference" width="400" height="400" class="w-full h-full block"></canvas>
+          
+          <!-- Crosshair and Photodetector Overlay -->
+          <div class="absolute inset-0 pointer-events-none flex items-center justify-center">
+            <div class="w-3.5 h-3.5 border-2 border-red-500/80 rounded-full bg-red-500/20 shadow-sm" title="Fotodetector Central"></div>
+            <div class="absolute w-full h-[1px] bg-slate-600/40"></div>
+            <div class="absolute h-full w-[1px] bg-slate-600/40"></div>
+          </div>
+
+          <!-- Live central intensity badge -->
+          <div class="absolute bottom-2 left-2 bg-slate-950/80 border border-slate-800 px-2 py-1 rounded text-[11px] font-mono-code backdrop-blur">
+            <span>Intensidad en detector: <strong id="lblCenterIntensity" class="text-cyan-400">100%</strong></span>
+          </div>
+        </div>
+
+        <!-- Fringe Counter Section -->
+        <div class="w-full mt-3 p-3 bg-slate-950/70 border border-slate-800/80 rounded-lg flex items-center justify-between gap-2">
+          <div>
+            <div class="text-[11px] text-slate-400">Contador de franjas que pasan por el centro:</div>
+            <div class="flex items-baseline gap-2">
+              <span id="counterFringes" class="text-2xl font-bold font-mono-code text-cyan-400">0</span>
+              <span class="text-xs text-slate-500">franjas (<span id="counterDirection">Reposo</span>)</span>
+            </div>
+          </div>
+          <div class="flex gap-1.5">
+            <button id="btnResetCounter" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-200 transition">
+              Poner a Cero (ΔN=0)
+            </button>
+            <button id="btnAutoScan" class="px-3 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-xs font-semibold text-white transition flex items-center gap-1">
+              <span id="iconScan">▶</span>
+              <span id="txtScan">Auto Micrómetro</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Real-time 1D Cross-Section Intensity Profile -->
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-3 shadow-lg flex flex-col flex-1 min-h-[220px]">
+        <div class="flex items-center justify-between pb-2 border-b border-slate-800 mb-2">
+          <div class="flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
+            <span class="text-xs font-semibold text-slate-300 uppercase tracking-wider">Perfil Transversal de Intensidad I(x)</span>
+          </div>
+          <span class="text-[11px] text-slate-400 font-mono-code">Corte horizontal y = 0</span>
+        </div>
+        <div class="relative flex-1 w-full bg-slate-950 rounded-lg overflow-hidden border border-slate-800/80">
+          <canvas id="canvasProfile" class="w-full h-full block"></canvas>
+        </div>
+        <div class="mt-2 text-[11px] text-slate-400 flex justify-between items-center px-1">
+          <span>Distribución según <span class="font-mono-code font-bold text-slate-300">I = I₁ + I₂ + 2√(I₁I₂) cos(Δφ)</span></span>
+          <span class="text-slate-500">Visibilidad: <strong class="text-emerald-400">V = 1.0 (Ideal)</strong></span>
+        </div>
+      </div>
+
+    </section>
+  </main>
+
+  <!-- Modal de Fundamento Teórico -->
+  <div id="theoryModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-700/80 rounded-2xl max-w-2xl w-full max-h-[85vh] overflow-y-auto p-6 shadow-2xl flex flex-col gap-4">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <h3 class="text-lg font-bold text-white flex items-center gap-2">
+          📖 Fundamentos Físicos del Interferómetro de Michelson
+        </h3>
+        <button id="btnCloseModal" class="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 text-lg">✕</button>
+      </div>
+
+      <div class="space-y-4 text-sm text-slate-300 leading-relaxed">
+        <div>
+          <h4 class="font-semibold text-cyan-400 text-sm mb-1">1. Principio de Operación</h4>
+          <p>
+            El interferómetro divide un haz de amplitud luminosa coherente en dos brazos mediante un divisor de haz semirreflectante (50:50). Los haces viajan hacia dos espejos (M1 fijo y M2 móvil), se reflejan y se recombinan en el divisor antes de proyectarse sobre la pantalla del detector.
+          </p>
+        </div>
+
+        <div class="bg-slate-950 p-3 rounded-lg border border-slate-800">
+          <h4 class="font-semibold text-emerald-400 text-sm mb-1">2. Diferencia de Camino Óptico (OPD) y Fase</h4>
+          <p class="mb-2">Para una inclinación cero (espejos paralelos), la diferencia de camino óptico entre ambos brazos para un ángulo de visualización $\theta$ es:</p>
+          <div class="text-center font-mono text-cyan-300 my-2 text-base">
+            $$\Delta = 2 d \cos(\theta)$$
+          </div>
+          <p>La condición de máximos constructivos (anillos brillantes) es:</p>
+          <div class="text-center font-mono text-amber-300 my-2 text-base">
+            $$2 d \cos(\theta_m) = m \lambda \quad (m \in \mathbb{Z})$$
+          </div>
+        </div>
+
+        <div>
+          <h4 class="font-semibold text-cyan-400 text-sm mb-1">3. Conteo de Franjas y Medición de $\lambda$</h4>
+          <p>
+            Al desplazar el espejo móvil M2 una distancia conocida $\Delta d$, el número $\Delta N$ de franjas que emergen o desaparecen en el centro $(\theta = 0)$ satisface:
+          </p>
+          <div class="text-center font-mono text-cyan-300 my-2 text-base">
+            $$\Delta d = \frac{\Delta N \cdot \lambda}{2} \iff \lambda = \frac{2 \Delta d}{\Delta N}$$
+          </div>
+        </div>
+
+        <div class="bg-slate-950 p-3 rounded-lg border border-slate-800">
+          <h4 class="font-semibold text-cyan-400 text-sm mb-1">4. Refracción de Gases (Ecuación de Lorentz-Lorenz / Gladstone-Dale)</h4>
+          <p>
+            Al introducir una celda sellada de longitud $L$ evacuada e inyectar gas hasta una presión $P$, el camino óptico se incrementa en $2(n - 1)L$. Al contar el cambio de franjas $\Delta N$:
+          </p>
+          <div class="text-center font-mono text-emerald-300 my-2 text-base">
+            $$n(P) - 1 = \frac{\Delta N \cdot \lambda}{2 L}$$
+          </div>
+        </div>
+      </div>
+
+      <div class="pt-3 border-t border-slate-800 flex justify-end">
+        <button id="btnCloseModalBtn" class="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg text-xs font-semibold">
+          Entendido
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* STATE OBJECT: Complete scientific parameters of the interferometer */
+    const state = {
+      // Optical parameters
+      wavelength: 632.8, // in nm
+      d: 0.0, // mirror displacement in micrometers (relative to equal arm length)
+      tiltX: 0.0, // tilt in mrad around Y axis (causes horizontal phase gradient)
+      tiltY: 0.0, // tilt in mrad around X axis (causes vertical phase gradient)
+      armLength: 50.0, // base physical arm length in mm
+      showBeams: true,
+      
+      // Gas cell parameters
+      hasGasCell: false,
+      cellLength: 10.0, // in mm
+      gasPressure: 0.0, // in kPa (0 to 101.3 kPa atm)
+      gasN0: 1.000000,
+      currentGasN: 1.000000,
+
+      // Screen / Detector
+      zoom: 1.0,
+      detectorIntensity: 1.0,
+      
+      // Fringe counter
+      baseReferenceD: 0.0,
+      baseReferenceGasN: 1.0,
+      counterFringes: 0,
+      accumulatedPhase: 0,
+
+      // Automation
+      isAutoScanning: false,
+      autoScanSpeed: 0.04, // um per frame
+
+      // Interactive Lab Mode
+      mode: 'free', // 'free' | 'exp1' | 'exp2'
+      exp1: {
+        unknownWavelength: 589.0, // Na yellow
+        startD: 0.0,
+        recordedFringes: 0,
+        completed: false
+      },
+      exp2: {
+        targetGas: 'CO2', // specific refractivity
+        cellLengthMm: 10.0,
+        startPressure: 0.0,
+        recordedFringes: 0,
+        completed: false
+      }
+    };
+
+    const canvasScheme = document.getElementById('canvasScheme');
+    const ctxScheme = canvasScheme.getContext('2d');
+    const canvasInterference = document.getElementById('canvasInterference');
+    const ctxInterference = canvasInterference.getContext('2d');
+    const canvasProfile = document.getElementById('canvasProfile');
+    const ctxProfile = canvasProfile.getContext('2d');
+
+    const sliderWavelength = document.getElementById('sliderWavelength');
+    const txtWavelength = document.getElementById('txtWavelength');
+    const sliderMirrorPos = document.getElementById('sliderMirrorPos');
+    const txtMirrorPos = document.getElementById('txtMirrorPos');
+    const sliderTiltX = document.getElementById('sliderTiltX');
+    const sliderTiltY = document.getElementById('sliderTiltY');
+    const txtTilt = document.getElementById('txtTilt');
+    const checkCellArm = document.getElementById('checkCellArm');
+    const sliderPressure = document.getElementById('sliderPressure');
+    const txtPressure = document.getElementById('txtPressure');
+    const txtGasN = document.getElementById('txtGasN');
+    const selectZoom = document.getElementById('selectZoom');
+    const checkShowBeams = document.getElementById('checkShowBeams');
+
+    const opdBadge = document.getElementById('opdBadge');
+    const counterFringesEl = document.getElementById('counterFringes');
+    const counterDirectionEl = document.getElementById('counterDirection');
+    const lblCenterIntensity = document.getElementById('lblCenterIntensity');
+    const laserStatusLabel = document.getElementById('laserStatusLabel');
+    const laserColorIndicator = document.getElementById('laserColorIndicator');
+
+    const btnAutoScan = document.getElementById('btnAutoScan');
+    const txtScan = document.getElementById('txtScan');
+    const iconScan = document.getElementById('iconScan');
+    const btnResetCounter = document.getElementById('btnResetCounter');
+    const btnResetBench = document.getElementById('btnResetBench');
+    const btnZeroTilt = document.getElementById('btnZeroTilt');
+
+    const btnTabExplorer = document.getElementById('btnTabExplorer');
+    const btnTabExp1 = document.getElementById('btnTabExp1');
+    const btnTabExp2 = document.getElementById('btnTabExp2');
+    const guidedExperimentCard = document.getElementById('guidedExperimentCard');
+
+    const theoryModal = document.getElementById('theoryModal');
+    const btnInfoModal = document.getElementById('btnInfoModal');
+    const btnCloseModal = document.getElementById('btnCloseModal');
+    const btnCloseModalBtn = document.getElementById('btnCloseModalBtn');
+    const schemeTooltip = document.getElementById('schemeTooltip');
+
+    // Helper to convert wavelength (nm) to RGB string
+    function wavelengthToRGB(wl) {
+      let r = 0, g = 0, b = 0;
+      if (wl >= 380 && wl < 440) {
+        r = -(wl - 440) / (440 - 380);
+        g = 0.0;
+        b = 1.0;
+      } else if (wl >= 440 && wl < 490) {
+        r = 0.0;
+        g = (wl - 440) / (490 - 440);
+        b = 1.0;
+      } else if (wl >= 490 && wl < 510) {
+        r = 0.0;
+        g = 1.0;
+        b = -(wl - 510) / (510 - 490);
+      } else if (wl >= 510 && wl < 580) {
+        r = (wl - 510) / (580 - 510);
+        g = 1.0;
+        b = 0.0;
+      } else if (wl >= 580 && wl < 645) {
+        r = 1.0;
+        g = -(wl - 645) / (645 - 580);
+        b = 0.0;
+      } else if (wl >= 645 && wl <= 780) {
+        r = 1.0;
+        g = 0.0;
+        b = 0.0;
+      }
+
+      // Factor intensity at limits of vision
+      let factor = 0.3;
+      if (wl >= 420 && wl <= 700) {
+        factor = 1.0;
+      } else if (wl >= 380 && wl < 420) {
+        factor = 0.3 + 0.7 * (wl - 380) / (420 - 380);
+      } else if (wl > 700 && wl <= 780) {
+        factor = 0.3 + 0.7 * (780 - wl) / (780 - 700);
+      }
+
+      const R = Math.round(255 * Math.pow(r * factor, 0.8));
+      const G = Math.round(255 * Math.pow(g * factor, 0.8));
+      const B = Math.round(255 * Math.pow(b * factor, 0.8));
+      return { r: R, g: G, b: B, rgbStr: `rgb(${R}, ${G}, ${B})` };
+    }
+
+    // Gas refractive index calculation based on Gladstone-Dale law
+    function updateGasIndex() {
+      if (!state.hasGasCell) {
+        state.currentGasN = 1.000000;
+      } else {
+        // Air / Gas index n ≈ 1 + k * (P / P0)
+        // At 101.3 kPa (1 atm) for air/gas n ≈ 1.000293 (or slightly higher for CO2 ~1.000450)
+        const gasCoeff = (state.mode === 'exp2' && state.exp2.targetGas === 'CO2') ? 0.000450 : 0.000293;
+        const ratio = state.gasPressure / 101.325;
+        state.currentGasN = 1.000000 + gasCoeff * ratio;
+      }
+      txtGasN.innerText = state.currentGasN.toFixed(6);
+    }
+
+    // Total Optical Path Difference in micrometers
+    function getOpticalPathDifference() {
+      // Brazo 2: delta pos d
+      // Brazo 1: Celda de gas delta OPD = 2 * (n - 1) * L (en micras)
+      const mirrorOPD = 2.0 * state.d;
+      let gasOPD = 0;
+      if (state.hasGasCell) {
+        const cellLengthMicrons = state.cellLength * 1000.0;
+        gasOPD = 2.0 * (state.currentGasN - 1.0) * cellLengthMicrons;
+      }
+      return mirrorOPD - gasOPD;
+    }
+
+    function renderOpticalScheme() {
+      const w = canvasScheme.width = canvasScheme.clientWidth;
+      const h = canvasScheme.height = canvasScheme.clientHeight;
+      ctxScheme.clearRect(0, 0, w, h);
+
+      // Laboratory table grid pattern
+      ctxScheme.lineWidth = 1;
+      ctxScheme.strokeStyle = '#1e293b';
+      const gridSize = 32;
+      for (let x = 0; x < w; x += gridSize) {
+        ctxScheme.beginPath();
+        ctxScheme.moveTo(x, 0);
+        ctxScheme.lineTo(x, h);
+        ctxScheme.stroke();
+      }
+      for (let y = 0; y < h; y += gridSize) {
+        ctxScheme.beginPath();
+        ctxScheme.moveTo(0, y);
+        ctxScheme.lineTo(w, y);
+        ctxScheme.stroke();
+      }
+
+      // Coordinates of components
+      const cx = w * 0.42;
+      const cy = h * 0.52;
+      const armLengthPx = Math.min(w * 0.28, h * 0.38);
+
+      const laserPos = { x: cx - armLengthPx * 1.15, y: cy };
+      const bsPos = { x: cx, y: cy };
+      const m1Pos = { x: cx, y: cy - armLengthPx }; // Fixed Mirror (Top)
+      // Mirror 2 pos with visual exaggeration of micrometer displacement
+      const visualDisp = (state.d / 25.0) * 16;
+      const m2Pos = { x: cx + armLengthPx + visualDisp, y: cy }; // Movable Mirror (Right)
+      const detectorPos = { x: cx, y: cy + armLengthPx * 0.95 }; // Screen (Bottom)
+
+      const colorData = wavelengthToRGB(state.wavelength);
+      const beamColor = colorData.rgbStr;
+
+      // 1. Draw Laser Source
+      ctxScheme.fillStyle = '#1e293b';
+      ctxScheme.strokeStyle = '#475569';
+      ctxScheme.lineWidth = 2;
+      ctxScheme.fillRect(laserPos.x - 55, laserPos.y - 18, 55, 36);
+      ctxScheme.strokeRect(laserPos.x - 55, laserPos.y - 18, 55, 36);
+
+      // Laser nozzle & glowing aperture
+      ctxScheme.fillStyle = '#0f172a';
+      ctxScheme.fillRect(laserPos.x - 5, laserPos.y - 8, 8, 16);
+      ctxScheme.fillStyle = beamColor;
+      ctxScheme.shadowColor = beamColor;
+      ctxScheme.shadowBlur = 12;
+      ctxScheme.fillRect(laserPos.x - 2, laserPos.y - 5, 4, 10);
+      ctxScheme.shadowBlur = 0; // reset
+
+      ctxScheme.fillStyle = '#cbd5e1';
+      ctxScheme.font = '11px JetBrains Mono';
+      ctxScheme.fillText('Láser', laserPos.x - 50, laserPos.y - 24);
+      ctxScheme.fillStyle = '#94a3b8';
+      ctxScheme.font = '10px JetBrains Mono';
+      ctxScheme.fillText(`${state.wavelength.toFixed(1)} nm`, laserPos.x - 52, laserPos.y + 30);
+
+      // 2. Beam Splitter (BS at 45 degrees)
+      ctxScheme.save();
+      ctxScheme.translate(bsPos.x, bsPos.y);
+      ctxScheme.rotate(-Math.PI / 4);
+
+      // Glass plate
+      ctxScheme.fillStyle = 'rgba(56, 189, 248, 0.25)';
+      ctxScheme.strokeStyle = '#38bdf8';
+      ctxScheme.lineWidth = 2;
+      ctxScheme.fillRect(-6, -34, 12, 68);
+      ctxScheme.strokeRect(-6, -34, 12, 68);
+
+      // Semireflecting coating line
+      ctxScheme.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+      ctxScheme.lineWidth = 2;
+      ctxScheme.beginPath();
+      ctxScheme.moveTo(-6, -34);
+      ctxScheme.lineTo(-6, 68);
+      ctxScheme.stroke();
+
+      ctxScheme.restore();
+
+      ctxScheme.fillStyle = '#e2e8f0';
+      ctxScheme.font = '11px Inter';
+      ctxScheme.fillText('Divisor 50:50 (BS)', bsPos.x + 14, bsPos.y - 16);
+
+      // Compensating Plate (Placa Compensadora)
+      const compPos = { x: cx, y: cy - armLengthPx * 0.45 };
+      ctxScheme.save();
+      ctxScheme.translate(compPos.x, compPos.y);
+      ctxScheme.rotate(-Math.PI / 4);
+      ctxScheme.fillStyle = 'rgba(148, 163, 184, 0.2)';
+      ctxScheme.strokeStyle = '#64748b';
+      ctxScheme.lineWidth = 1.5;
+      ctxScheme.fillRect(-4, -20, 8, 40);
+      ctxScheme.strokeRect(-4, -20, 8, 40);
+      ctxScheme.restore();
+      ctxScheme.fillStyle = '#64748b';
+      ctxScheme.font = '9px Inter';
+      ctxScheme.fillText('Compensadora', compPos.x + 15, compPos.y);
+
+      // Gas Cell (if active) on Arm 1 (between BS and M1)
+      if (state.hasGasCell) {
+        const cellY = cy - armLengthPx * 0.72;
+        ctxScheme.fillStyle = 'rgba(45, 212, 191, 0.15)';
+        ctxScheme.strokeStyle = '#2dd4bf';
+        ctxScheme.lineWidth = 1.5;
+        ctxScheme.fillRect(cx - 18, cellY - 18, 36, 36);
+        ctxScheme.strokeRect(cx - 18, cellY - 18, 36, 36);
+
+        // Valves & pressure gauge indication
+        ctxScheme.fillStyle = '#2dd4bf';
+        ctxScheme.font = '10px JetBrains Mono';
+        ctxScheme.fillText('Celda Gas', cx + 24, cellY);
+        ctxScheme.fillText(`${state.gasPressure.toFixed(1)} kPa`, cx + 24, cellY + 12);
+      }
+
+      // 3. Fixed Mirror M1 (Top)
+      ctxScheme.fillStyle = '#334155';
+      ctxScheme.strokeStyle = '#94a3b8';
+      ctxScheme.lineWidth = 3;
+      ctxScheme.beginPath();
+      ctxScheme.moveTo(m1Pos.x - 30, m1Pos.y);
+      ctxScheme.lineTo(m1Pos.x + 30, m1Pos.y);
+      ctxScheme.stroke();
+
+      // Mirror back mount hatchings
+      ctxScheme.strokeStyle = '#475569';
+      ctxScheme.lineWidth = 1.5;
+      for (let i = -24; i <= 24; i += 6) {
+        ctxScheme.beginPath();
+        ctxScheme.moveTo(m1Pos.x + i, m1Pos.y);
+        ctxScheme.lineTo(m1Pos.x + i + 5, m1Pos.y - 8);
+        ctxScheme.stroke();
+      }
+      ctxScheme.fillStyle = '#f8fafc';
+      ctxScheme.font = '11px Inter';
+      ctxScheme.fillText('Espejo Fijo (M₁)', m1Pos.x - 36, m1Pos.y - 14);
+
+      // 4. Movable Mirror M2 with Tilt (Right)
+      ctxScheme.save();
+      ctxScheme.translate(m2Pos.x, m2Pos.y);
+      // Exaggerate tilt for visual intuition in diagram
+      const visualTiltAngle = (state.tiltX / 3.0) * 0.12;
+      ctxScheme.rotate(visualTiltAngle);
+
+      ctxScheme.fillStyle = '#334155';
+      ctxScheme.strokeStyle = '#38bdf8';
+      ctxScheme.lineWidth = 3;
+      ctxScheme.beginPath();
+      ctxScheme.moveTo(0, -30);
+      ctxScheme.lineTo(0, 30);
+      ctxScheme.stroke();
+
+      // Micrometer body behind M2
+      ctxScheme.strokeStyle = '#475569';
+      ctxScheme.lineWidth = 1.5;
+      for (let j = -24; j <= 24; j += 6) {
+        ctxScheme.beginPath();
+        ctxScheme.moveTo(0, j);
+        ctxScheme.lineTo(8, j + 5);
+        ctxScheme.stroke();
+      }
+      // Micrometer barrel representation
+      ctxScheme.fillStyle = '#1e293b';
+      ctxScheme.strokeStyle = '#64748b';
+      ctxScheme.lineWidth = 1.5;
+      ctxScheme.fillRect(8, -10, 24, 20);
+      ctxScheme.strokeRect(8, -10, 24, 20);
+      ctxScheme.restore();
+
+      ctxScheme.fillStyle = '#38bdf8';
+      ctxScheme.font = '11px Inter';
+      ctxScheme.fillText('Espejo Móvil (M₂)', m2Pos.x - 30, m2Pos.y - 36);
+      ctxScheme.fillStyle = '#94a3b8';
+      ctxScheme.font = '10px JetBrains Mono';
+      ctxScheme.fillText(`d: ${state.d >= 0 ? '+' : ''}${state.d.toFixed(3)} μm`, m2Pos.x - 24, m2Pos.y + 45);
+
+      // 5. Detector / Screen (Bottom)
+      ctxScheme.fillStyle = '#0f172a';
+      ctxScheme.strokeStyle = '#64748b';
+      ctxScheme.lineWidth = 2;
+      ctxScheme.fillRect(detectorPos.x - 34, detectorPos.y, 68, 14);
+      ctxScheme.strokeRect(detectorPos.x - 34, detectorPos.y, 68, 14);
+
+      // Detection surface glow
+      ctxScheme.fillStyle = beamColor;
+      ctxScheme.shadowColor = beamColor;
+      ctxScheme.shadowBlur = 8;
+      ctxScheme.fillRect(detectorPos.x - 28, detectorPos.y, 56, 3);
+      ctxScheme.shadowBlur = 0;
+
+      ctxScheme.fillStyle = '#f8fafc';
+      ctxScheme.font = '11px Inter';
+      ctxScheme.fillText('Detector / Pantalla', detectorPos.x - 48, detectorPos.y + 28);
+
+      // 6. Laser Beams (Animated & Coherent paths)
+      if (state.showBeams) {
+        ctxScheme.save();
+        ctxScheme.lineWidth = 2.5;
+        ctxScheme.strokeStyle = beamColor;
+        ctxScheme.shadowColor = beamColor;
+        ctxScheme.shadowBlur = 10;
+
+        // Path 1: Laser -> Beam Splitter
+        ctxScheme.beginPath();
+        ctxScheme.moveTo(laserPos.x, laserPos.y);
+        ctxScheme.lineTo(bsPos.x, bsPos.y);
+        ctxScheme.stroke();
+
+        // Path 2: BS -> M1 (Reflected to top) & M1 -> BS
+        ctxScheme.strokeStyle = beamColor;
+        ctxScheme.beginPath();
+        ctxScheme.moveTo(bsPos.x, bsPos.y);
+        ctxScheme.lineTo(m1Pos.x, m1Pos.y);
+        ctxScheme.stroke();
+
+        // Path 3: BS -> M2 (Transmitted to right) & M2 -> BS
+        ctxScheme.beginPath();
+        ctxScheme.moveTo(bsPos.x, bsPos.y);
+        ctxScheme.lineTo(m2Pos.x, m2Pos.y);
+        ctxScheme.stroke();
+
+        // Path 4: Recombined Beams -> Detector
+        ctxScheme.beginPath();
+        ctxScheme.moveTo(bsPos.x, bsPos.y);
+        ctxScheme.lineTo(detectorPos.x, detectorPos.y);
+        ctxScheme.stroke();
+
+        // Animated propagating pulses
+        const timeNow = performance.now() * 0.003;
+        const pulseSpacing = 28;
+        ctxScheme.fillStyle = '#ffffff';
+        ctxScheme.shadowColor = '#ffffff';
+        ctxScheme.shadowBlur = 6;
+
+        // Pulses Laser -> BS
+        for (let x = laserPos.x; x < bsPos.x; x += pulseSpacing) {
+          const shift = (x + (timeNow * 40)) % (bsPos.x - laserPos.x);
+          const px = laserPos.x + shift;
+          ctxScheme.beginPath();
+          ctxScheme.arc(px, laserPos.y, 1.8, 0, Math.PI * 2);
+          ctxScheme.fill();
+        }
+
+        // Pulses BS -> Detector
+        for (let y = bsPos.y; y < detectorPos.y; y += pulseSpacing) {
+          const shift = (y + (timeNow * 40)) % (detectorPos.y - bsPos.y);
+          const py = bsPos.y + shift;
+          ctxScheme.beginPath();
+          ctxScheme.arc(detectorPos.x, py, 1.8, 0, Math.PI * 2);
+          ctxScheme.fill();
+        }
+
+        ctxScheme.restore();
+      }
+    }
+
+    function renderInterferencePattern() {
+      const width = canvasInterference.width;
+      const height = canvasInterference.height;
+      const imgData = ctxInterference.createImageData(width, height);
+      const data = imgData.data;
+
+      // Optical parameters converted to consistent units
+      // Wavelength in micrometers
+      const lambdaUm = state.wavelength * 1e-3;
+      const k = (2.0 * Math.PI) / lambdaUm; // wave number (rad/um)
+
+      // Total path difference on central axis (in um)
+      const opd = getOpticalPathDifference();
+
+      // Mirror tilt in rad: tiltX and tiltY were input in mrad
+      const tx = state.tiltX * 1e-3;
+      const ty = state.tiltY * 1e-3;
+
+      // Color spectral components
+      const color = wavelengthToRGB(state.wavelength);
+
+      // Virtual screen physics:
+      // Distance from virtual source to screen ~ 500 mm (500,000 um)
+      const R_screen = 250000.0; // micrometers
+      // Physical scale of detector: 20 mm x 20 mm field of view
+      const fovMm = 15.0 / state.zoom; 
+      const scaleUmPerPx = (fovMm * 1000.0) / width;
+
+      const halfW = width / 2;
+      const halfH = height / 2;
+
+      // Intensity accumulation for center photodetector reading
+      let centerIntensitySum = 0;
+
+      for (let py = 0; py < height; py++) {
+        const yMm = (py - halfH) * scaleUmPerPx; // coordinate in um
+        const pyOffset = py * width * 4;
+
+        for (let px = 0; px < width; px++) {
+          const xMm = (px - halfW) * scaleUmPerPx; // coordinate in um
+
+          // Physical phase calculation:
+          // 1. Air wedge / tilt term: Δφ_tilt = 2 * k * (x * tx + y * ty)
+          const phaseTilt = 2.0 * k * (xMm * tx + yMm * ty);
+
+          // 2. Concentric ring term (Haidinger fringes):
+          // cos(theta) ≈ 1 - (r^2 / 2R^2), OPD(theta) = 2 * d * cos(theta) = 2d - d*(r^2 / R^2)
+          const r2 = xMm * xMm + yMm * yMm;
+          const phaseRings = k * (2.0 * opd - (opd * r2) / (R_screen * R_screen));
+
+          // Total combined phase difference
+          const deltaPhi = phaseTilt + phaseRings;
+
+          // Interference equation: I = I1 + I2 + 2*sqrt(I1*I2)*cos(deltaPhi)
+          // Normalizing with I1 = I2 = 0.5 -> I = 0.5 * (1 + cos(deltaPhi)) in range [0, 1]
+          let normI = 0.5 * (1.0 + Math.cos(deltaPhi));
+
+          // Soft Gaussian aperture envelope (laser beam waist radius on screen)
+          const beamWaistUm = (fovMm * 1000.0) * 0.48;
+          const gaussianFalloff = Math.exp(- (2.0 * r2) / (beamWaistUm * beamWaistUm));
+          const pixelIntensity = normI * Math.min(1.0, gaussianFalloff + 0.15);
+
+          // Store center intensity
+          if (px === halfW && py === halfH) {
+            centerIntensitySum = normI;
+          }
+
+          const idx = pyOffset + (px * 4);
+          data[idx]     = Math.min(255, Math.round(color.r * pixelIntensity));
+          data[idx + 1] = Math.min(255, Math.round(color.g * pixelIntensity));
+          data[idx + 2] = Math.min(255, Math.round(color.b * pixelIntensity));
+          data[idx + 3] = 255;
+        }
+      }
+
+      ctxInterference.putImageData(imgData, 0, 0);
+
+      // Update Center Photodetector text display
+      state.detectorIntensity = centerIntensitySum;
+      lblCenterIntensity.innerText = `${Math.round(centerIntensitySum * 100)}%`;
+      lblCenterIntensity.style.color = (centerIntensitySum > 0.6) ? '#38bdf8' : (centerIntensitySum < 0.25) ? '#94a3b8' : '#e2e8f0';
+    }
+
+    function renderIntensityProfile() {
+      const w = canvasProfile.width = canvasProfile.clientWidth;
+      const h = canvasProfile.height = canvasProfile.clientHeight;
+      ctxProfile.clearRect(0, 0, w, h);
+
+      // Draw coordinate grid
+      ctxProfile.lineWidth = 1;
+      ctxProfile.strokeStyle = '#1e293b';
+      // Horizontal level lines (0%, 50%, 100%)
+      const y0 = h - 18;
+      const y50 = h * 0.5;
+      const y100 = 18;
+
+      ctxProfile.beginPath();
+      ctxProfile.moveTo(35, y100); ctxProfile.lineTo(w - 10, y100);
+      ctxProfile.moveTo(35, y50);  ctxProfile.lineTo(w - 10, y50);
+      ctxProfile.moveTo(35, y0);   ctxProfile.lineTo(w - 10, y0);
+      ctxProfile.stroke();
+
+      // Axis labels
+      ctxProfile.fillStyle = '#64748b';
+      ctxProfile.font = '10px JetBrains Mono';
+      ctxProfile.fillText('1.0', 10, y100 + 3);
+      ctxProfile.fillText('0.5', 10, y50 + 3);
+      ctxProfile.fillText('0.0', 10, y0 + 3);
+
+      const lambdaUm = state.wavelength * 1e-3;
+      const k = (2.0 * Math.PI) / lambdaUm;
+      const opd = getOpticalPathDifference();
+      const tx = state.tiltX * 1e-3;
+      const R_screen = 250000.0;
+      const fovMm = 15.0 / state.zoom;
+      const scaleUmPerPx = (fovMm * 1000.0) / w;
+
+      const halfW = w / 2;
+      const color = wavelengthToRGB(state.wavelength);
+
+      // Trace line profile along horizontal center line (y = 0)
+      ctxProfile.beginPath();
+      ctxProfile.lineWidth = 2;
+      ctxProfile.strokeStyle = color.rgbStr;
+
+      for (let px = 35; px < w - 10; px++) {
+        const xMm = (px - halfW) * scaleUmPerPx;
+        const phaseTilt = 2.0 * k * (xMm * tx);
+        const r2 = xMm * xMm;
+        const phaseRings = k * (2.0 * opd - (opd * r2) / (R_screen * R_screen));
+        const deltaPhi = phaseTilt + phaseRings;
+
+        let normI = 0.5 * (1.0 + Math.cos(deltaPhi));
+        const beamWaistUm = (fovMm * 1000.0) * 0.48;
+        const gaussianFalloff = Math.exp(- (2.0 * r2) / (beamWaistUm * beamWaistUm));
+        const finalI = normI * Math.min(1.0, gaussianFalloff + 0.15);
+
+        // Map to canvas Y
+        const py = y0 - finalI * (y0 - y100);
+        if (px === 35) {
+          ctxProfile.moveTo(px, py);
+        } else {
+          ctxProfile.lineTo(px, py);
+        }
+      }
+      ctxProfile.stroke();
+
+      // Center crosshair marker
+      ctxProfile.strokeStyle = 'rgba(239, 68, 68, 0.6)';
+      ctxProfile.setLineDash([3, 3]);
+      ctxProfile.beginPath();
+      ctxProfile.moveTo(halfW, 10);
+      ctxProfile.lineTo(halfW, h - 10);
+      ctxProfile.stroke();
+      ctxProfile.setLineDash([]);
+    }
+
+    function checkFringeTransitions() {
+      // Phase at detector center: phi_center = 2 * k * OPD
+      const lambdaUm = state.wavelength * 1e-3;
+      const opd = getOpticalPathDifference();
+      const currentCentralPhase = (2.0 * Math.PI / lambdaUm) * opd;
+
+      // Initial anchor
+      if (state.lastPhase === undefined) {
+        state.lastPhase = currentCentralPhase;
+        return;
+      }
+
+      const dPhase = currentCentralPhase - state.lastPhase;
+      state.accumulatedPhase += dPhase;
+      state.lastPhase = currentCentralPhase;
+
+      // One full fringe corresponds to 2 * PI phase change
+      const fringes = Math.floor(Math.abs(state.accumulatedPhase) / (2.0 * Math.PI));
+      state.counterFringes = fringes;
+      counterFringesEl.innerText = fringes;
+
+      if (Math.abs(dPhase) > 0.0001) {
+        counterDirectionEl.innerText = (dPhase > 0) ? 'Expansión ↑' : 'Contracción ↓';
+      } else {
+        counterDirectionEl.innerText = 'Estático';
+      }
+
+      // Update OPD Badge
+      opdBadge.innerText = `Δ = ${opd >= 0 ? '+' : ''}${opd.toFixed(3)} μm`;
+    }
+
+    let lastAnimTimestamp = 0;
+    function animationLoop(timestamp) {
+      if (state.isAutoScanning) {
+        // Slowly advance mirror 2
+        state.d += state.autoScanSpeed * 0.05;
+        if (state.d > 25.0) {
+          state.d = -25.0;
+        }
+        sliderMirrorPos.value = state.d.toFixed(3);
+        txtMirrorPos.innerText = `${state.d >= 0 ? '+' : ''}${state.d.toFixed(3)} μm`;
+      }
+
+      checkFringeTransitions();
+      renderOpticalScheme();
+      renderInterferencePattern();
+      renderIntensityProfile();
+
+      // Update experiment calculations if in an active practical session
+      updateExperimentMetrics();
+
+      requestAnimationFrame(animationLoop);
+    }
+
+    function setLabMode(newMode) {
+      state.mode = newMode;
+      btnTabExplorer.className = `tab-btn px-3 py-1.5 rounded-lg font-medium transition ${newMode === 'free' ? 'bg-cyan-600 text-white shadow-sm' : 'bg-slate-800 hover:bg-slate-700 text-slate-300'}`;
+      btnTabExp1.className = `tab-btn px-3 py-1.5 rounded-lg font-medium transition ${newMode === 'exp1' ? 'bg-cyan-600 text-white shadow-sm' : 'bg-slate-800 hover:bg-slate-700 text-slate-300'}`;
+      btnTabExp2.className = `tab-btn px-3 py-1.5 rounded-lg font-medium transition ${newMode === 'exp2' ? 'bg-cyan-600 text-white shadow-sm' : 'bg-slate-800 hover:bg-slate-700 text-slate-300'}`;
+
+      if (newMode === 'free') {
+        guidedExperimentCard.classList.add('hidden');
+        sliderWavelength.disabled = false;
+        checkCellArm.disabled = false;
+      } else if (newMode === 'exp1') {
+        initExperiment1();
+      } else if (newMode === 'exp2') {
+        initExperiment2();
+      }
+    }
+
+    function initExperiment1() {
+      guidedExperimentCard.classList.remove('hidden');
+      sliderWavelength.disabled = true;
+      checkCellArm.checked = false;
+      state.hasGasCell = false;
+      sliderPressure.disabled = true;
+
+      // Set random unknown laser in visible spectrum
+      const presets = [488.0, 514.5, 543.5, 594.1, 612.0, 650.0];
+      state.exp1.unknownWavelength = presets[Math.floor(Math.random() * presets.length)];
+      state.wavelength = state.exp1.unknownWavelength;
+      state.d = 0.0;
+      sliderMirrorPos.value = 0;
+      txtMirrorPos.innerText = "0.000 μm";
+      state.accumulatedPhase = 0;
+      state.counterFringes = 0;
+      state.lastPhase = undefined;
+
+      updateColorUI();
+
+      guidedExperimentCard.innerHTML = `
+        <div class="flex items-start justify-between border-b border-slate-800 pb-2 mb-3">
+          <div>
+            <h3 class="text-xs font-bold uppercase tracking-wider text-cyan-400">Práctica 1: Determinación de Longitud de Onda Desconocida</h3>
+            <p class="text-xs text-slate-400">Use el micrómetro para mover el espejo M₂ y cuente el paso de franjas.</p>
+          </div>
+          <span class="text-xs font-mono-code bg-amber-950 text-amber-300 px-2 py-0.5 rounded border border-amber-800">Láser Incógnita</span>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs mb-3">
+          <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800">
+            <span class="text-slate-400">Desplazamiento Espejo (Δd):</span>
+            <div id="exp1DeltaD" class="text-base font-bold font-mono-code text-cyan-300">0.000 μm</div>
+          </div>
+          <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800">
+            <span class="text-slate-400">Franjas contadas (ΔN):</span>
+            <div id="exp1Fringes" class="text-base font-bold font-mono-code text-emerald-300">0</div>
+          </div>
+          <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800">
+            <span class="text-slate-400">λ Calculada (2Δd / ΔN):</span>
+            <div id="exp1CalculatedWl" class="text-base font-bold font-mono-code text-amber-300">-- nm</div>
+          </div>
+        </div>
+        <div class="flex items-center justify-between text-xs pt-1">
+          <span class="text-slate-500">Mueva al menos 20 a 50 franjas para una medición precisa.</span>
+          <button id="btnRevealExp1" class="px-3 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700">Verificar Exactitud</button>
+        </div>
+        <div id="exp1Feedback" class="mt-2 text-xs hidden"></div>
+      `;
+
+      document.getElementById('btnRevealExp1').onclick = () => {
+        const feedback = document.getElementById('exp1Feedback');
+        feedback.classList.remove('hidden');
+        const calculated = (state.counterFringes > 0) ? (2.0 * Math.abs(state.d) * 1000.0) / state.counterFringes : 0;
+        const err = Math.abs(calculated - state.exp1.unknownWavelength);
+        feedback.innerHTML = `
+          <div class="p-2.5 rounded-lg ${err < 5 ? 'bg-emerald-950/80 border border-emerald-800 text-emerald-300' : 'bg-slate-950 border border-slate-800 text-slate-300'}">
+            <strong>Valor real de emisión:</strong> ${state.exp1.unknownWavelength.toFixed(1)} nm.
+            ${err < 5 ? ' ¡Excelente precisión interferométrica!' : ' Sugerencia: aumente el desplazamiento para promediar más franjas.'}
+          </div>
+        `;
+      };
+    }
+
+    function initExperiment2() {
+      guidedExperimentCard.classList.remove('hidden');
+      sliderWavelength.disabled = false;
+      checkCellArm.checked = true;
+      state.hasGasCell = true;
+      sliderPressure.disabled = false;
+      sliderPressure.value = 0;
+      state.gasPressure = 0.0;
+      updateGasIndex();
+
+      state.d = 0.0;
+      sliderMirrorPos.value = 0;
+      txtMirrorPos.innerText = "0.000 μm";
+      state.accumulatedPhase = 0;
+      state.counterFringes = 0;
+      state.lastPhase = undefined;
+
+      guidedExperimentCard.innerHTML = `
+        <div class="flex items-start justify-between border-b border-slate-800 pb-2 mb-3">
+          <div>
+            <h3 class="text-xs font-bold uppercase tracking-wider text-teal-400">Práctica 2: Índice de Refracción de Gas vs Presión</h3>
+            <p class="text-xs text-slate-400">Inyecte gas en la celda hermética (L = 10.0 mm) y registre el tránsito de franjas.</p>
+          </div>
+          <span class="text-xs font-mono-code bg-teal-950 text-teal-300 px-2 py-0.5 rounded border border-teal-800">Celda Óptica Activa</span>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs mb-3">
+          <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800">
+            <span class="text-slate-400">Presión Actual (P):</span>
+            <div id="exp2Pres" class="text-base font-bold font-mono-code text-teal-300">0.0 kPa</div>
+          </div>
+          <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800">
+            <span class="text-slate-400">Franjas contadas (ΔN):</span>
+            <div id="exp2Fringes" class="text-base font-bold font-mono-code text-cyan-300">0</div>
+          </div>
+          <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800">
+            <span class="text-slate-400">n(P) Calculado:</span>
+            <div id="exp2CalculatedN" class="text-base font-bold font-mono-code text-emerald-300">1.000000</div>
+          </div>
+        </div>
+        <div class="text-[11px] text-slate-400">
+          Ecuación: <strong class="text-slate-200">n - 1 = (ΔN · λ) / (2 · L)</strong>, con L = 10,000 μm.
+        </div>
+      `;
+    }
+
+    function updateExperimentMetrics() {
+      if (state.mode === 'exp1') {
+        const deltaEl = document.getElementById('exp1DeltaD');
+        const frEl = document.getElementById('exp1Fringes');
+        const calcEl = document.getElementById('exp1CalculatedWl');
+        if (deltaEl && frEl && calcEl) {
+          const deltaD = Math.abs(state.d);
+          deltaEl.innerText = `${deltaD.toFixed(3)} μm`;
+          frEl.innerText = state.counterFringes;
+          if (state.counterFringes >= 3) {
+            const calculated = (2.0 * deltaD * 1000.0) / state.counterFringes;
+            calcEl.innerText = `${calculated.toFixed(1)} nm`;
+          } else {
+            calcEl.innerText = '-- nm';
+          }
+        }
+      } else if (state.mode === 'exp2') {
+        const pEl = document.getElementById('exp2Pres');
+        const frEl = document.getElementById('exp2Fringes');
+        const nEl = document.getElementById('exp2CalculatedN');
+        if (pEl && frEl && nEl) {
+          pEl.innerText = `${state.gasPressure.toFixed(1)} kPa`;
+          frEl.innerText = state.counterFringes;
+          const lambdaUm = state.wavelength * 1e-3;
+          const cellLengthUm = state.cellLength * 1000.0;
+          const deltaN = state.counterFringes;
+          const nExp = 1.0 + (deltaN * lambdaUm) / (2.0 * cellLengthUm);
+          nEl.innerText = nExp.toFixed(6);
+        }
+      }
+    }
+
+    function updateColorUI() {
+      const c = wavelengthToRGB(state.wavelength);
+      laserColorIndicator.style.backgroundColor = c.rgbStr;
+      laserColorIndicator.style.boxShadow = `0 0 10px ${c.rgbStr}`;
+      laserStatusLabel.innerText = `${state.wavelength.toFixed(1)} nm`;
+      txtWavelength.innerText = `${state.wavelength.toFixed(1)} nm`;
+      txtWavelength.style.color = c.rgbStr;
+    }
+
+    sliderWavelength.addEventListener('input', (e) => {
+      state.wavelength = parseFloat(e.target.value);
+      updateColorUI();
+    });
+
+    document.querySelectorAll('.preset-wl').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        if (state.mode === 'exp1') return; // locked in exp1
+        const wl = parseFloat(e.target.getAttribute('data-wl'));
+        state.wavelength = wl;
+        sliderWavelength.value = wl;
+        updateColorUI();
+      });
+    });
+
+    sliderMirrorPos.addEventListener('input', (e) => {
+      state.d = parseFloat(e.target.value);
+      txtMirrorPos.innerText = `${state.d >= 0 ? '+' : ''}${state.d.toFixed(3)} μm`;
+    });
+
+    const adjustMirror = (delta) => {
+      state.d = parseFloat((state.d + delta).toFixed(3));
+      sliderMirrorPos.value = state.d;
+      txtMirrorPos.innerText = `${state.d >= 0 ? '+' : ''}${state.d.toFixed(3)} μm`;
+    };
+
+    document.getElementById('btnStepMinus10').addEventListener('click', () => adjustMirror(-1.0));
+    document.getElementById('btnStepMinus01').addEventListener('click', () => adjustMirror(-0.1));
+    document.getElementById('btnStepPlus01').addEventListener('click', () => adjustMirror(+0.1));
+    document.getElementById('btnStepPlus10').addEventListener('click', () => adjustMirror(+1.0));
+
+    sliderTiltX.addEventListener('input', (e) => {
+      state.tiltX = parseFloat(e.target.value);
+      updateTiltLabel();
+    });
+
+    sliderTiltY.addEventListener('input', (e) => {
+      state.tiltY = parseFloat(e.target.value);
+      updateTiltLabel();
+    });
+
+    function updateTiltLabel() {
+      const totalTilt = Math.sqrt(state.tiltX * state.tiltX + state.tiltY * state.tiltY);
+      txtTilt.innerText = `${totalTilt.toFixed(2)} mrad`;
+    }
+
+    btnZeroTilt.addEventListener('click', () => {
+      state.tiltX = 0;
+      state.tiltY = 0;
+      sliderTiltX.value = 0;
+      sliderTiltY.value = 0;
+      updateTiltLabel();
+    });
+
+    checkCellArm.addEventListener('change', (e) => {
+      state.hasGasCell = e.target.checked;
+      sliderPressure.disabled = !state.hasGasCell;
+      updateGasIndex();
+    });
+
+    sliderPressure.addEventListener('input', (e) => {
+      state.gasPressure = parseFloat(e.target.value);
+      txtPressure.innerText = `${state.gasPressure.toFixed(1)} kPa`;
+      updateGasIndex();
+    });
+
+    selectZoom.addEventListener('change', (e) => {
+      state.zoom = parseFloat(e.target.value);
+    });
+
+    checkShowBeams.addEventListener('change', (e) => {
+      state.showBeams = e.target.checked;
+    });
+
+    btnResetCounter.addEventListener('click', () => {
+      state.accumulatedPhase = 0;
+      state.counterFringes = 0;
+      state.lastPhase = undefined;
+      counterFringesEl.innerText = "0";
+      counterDirectionEl.innerText = "Reposo";
+    });
+
+    btnResetBench.addEventListener('click', () => {
+      state.d = 0.0;
+      sliderMirrorPos.value = 0;
+      txtMirrorPos.innerText = "0.000 μm";
+      state.tiltX = 0;
+      state.tiltY = 0;
+      sliderTiltX.value = 0;
+      sliderTiltY.value = 0;
+      updateTiltLabel();
+      state.accumulatedPhase = 0;
+      state.counterFringes = 0;
+      state.lastPhase = undefined;
+      counterFringesEl.innerText = "0";
+    });
+
+    btnAutoScan.addEventListener('click', () => {
+      state.isAutoScanning = !state.isAutoScanning;
+      if (state.isAutoScanning) {
+        btnAutoScan.classList.remove('bg-cyan-600', 'hover:bg-cyan-500');
+        btnAutoScan.classList.add('bg-amber-600', 'hover:bg-amber-500');
+        iconScan.innerText = '⏸';
+        txtScan.innerText = 'Pausar Motor';
+      } else {
+        btnAutoScan.classList.remove('bg-amber-600', 'hover:bg-amber-500');
+        btnAutoScan.classList.add('bg-cyan-600', 'hover:bg-cyan-500');
+        iconScan.innerText = '▶';
+        txtScan.innerText = 'Auto Micrómetro';
+      }
+    });
+
+    // Tab Navigation
+    btnTabExplorer.addEventListener('click', () => setLabMode('free'));
+    btnTabExp1.addEventListener('click', () => setLabMode('exp1'));
+    btnTabExp2.addEventListener('click', () => setLabMode('exp2'));
+
+    // Theory modal events
+    const toggleModal = (show) => {
+      if (show) {
+        theoryModal.classList.remove('hidden');
+        if (window.renderMathInElement) {
+          renderMathInElement(theoryModal, {
+            delimiters: [
+              { left: '$$', right: '$$', display: true },
+              { left: '$', right: '$', display: false }
+            ]
+          });
+        }
+      } else {
+        theoryModal.classList.add('hidden');
+      }
+    };
+
+    btnInfoModal.addEventListener('click', () => toggleModal(true));
+    btnCloseModal.addEventListener('click', () => toggleModal(false));
+    btnCloseModalBtn.addEventListener('click', () => toggleModal(false));
+    theoryModal.addEventListener('click', (e) => {
+      if (e.target === theoryModal) toggleModal(false);
+    });
+
+    // Tooltip for Optical Scheme
+    canvasScheme.addEventListener('mousemove', (e) => {
+      const rect = canvasScheme.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      const w = canvasScheme.width;
+      const h = canvasScheme.height;
+
+      const cx = w * 0.42;
+      const cy = h * 0.52;
+      const armLengthPx = Math.min(w * 0.28, h * 0.38);
+
+      let tooltipText = "";
+      if (Math.hypot(x - cx, y - cy) < 32) {
+        tooltipText = "<strong>Divisor de Haz (50:50):</strong> Divide la amplitud en dos haces perpendiculares idénticos.";
+      } else if (Math.hypot(x - cx, y - (cy - armLengthPx)) < 30) {
+        tooltipText = "<strong>Espejo Fijo (M₁):</strong> Establece el brazo de referencia constante.";
+      } else if (Math.hypot(x - (cx + armLengthPx), y - cy) < 35) {
+        tooltipText = "<strong>Espejo Móvil (M₂):</strong> Montado sobre tornillo micrométrico de precisión e inclinación ajustable.";
+      } else if (Math.hypot(x - cx, y - (cy + armLengthPx * 0.95)) < 35) {
+        tooltipText = "<strong>Detector / Pantalla:</strong> Observación de franjas y fotodiodo en el centro.";
+      }
+
+      if (tooltipText) {
+        schemeTooltip.innerHTML = tooltipText;
+        schemeTooltip.style.left = `${Math.min(rect.width - 240, x + 15)}px`;
+        schemeTooltip.style.top = `${Math.min(rect.height - 60, y + 15)}px`;
+        schemeTooltip.classList.remove('hidden');
+      } else {
+        schemeTooltip.classList.add('hidden');
+      }
+    });
+
+    canvasScheme.addEventListener('mouseleave', () => {
+      schemeTooltip.classList.add('hidden');
+    });
+
+    window.addEventListener('load', () => {
+      updateColorUI();
+      updateGasIndex();
+      requestAnimationFrame(animationLoop);
+    });
+  </script>
+</body>
+</html>
